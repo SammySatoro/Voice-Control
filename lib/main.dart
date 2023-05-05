@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:voice_control/background_services_manager.dart';
+import 'package:voice_control/controls/background_services_manager.dart';
 
+import 'controls/applications_manager.dart';
 import 'views/root_page_view.dart';
 
 
+ValueNotifier<ApplicationsInfo?> appsInfo = ValueNotifier<ApplicationsInfo?>(null);
 
+Future<void> _fetchAppsAndNotify() async {
+  await ApplicationsInfo.instance.fetchInstalledApps();
+  appsInfo.value = ApplicationsInfo.instance;
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +21,7 @@ void main() async {
     }
   });
   await initializeService();
+  _fetchAppsAndNotify();
   runApp(const MyApp());
 }
 

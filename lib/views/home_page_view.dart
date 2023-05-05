@@ -1,10 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
-
-import '../applications_manager.dart';
+import '../controls/applications_manager.dart';
 import 'package:external_app_launcher/external_app_launcher.dart';
 
-ApplicationsInfo appsInfo = ApplicationsInfo();
+
 
 class HomePageView extends StatefulWidget {
 
@@ -15,7 +14,6 @@ class HomePageView extends StatefulWidget {
 }
 
 class _HomePageViewState extends State<HomePageView> {
-
   bool showApps = false;
 
   showAppList(bool showed) {
@@ -32,19 +30,19 @@ class _HomePageViewState extends State<HomePageView> {
             'Voice Control',
           )
       ),
-      body: showApps ? ListView.builder(
-        itemCount: appsInfo.length(),
+      body: ListView.builder(
+        itemCount: ApplicationsInfo.instance.installedApps!.length,
         itemBuilder: (BuildContext context, int index) {
-          ApplicationInfo app = appsInfo.info[index];
+          final app = ApplicationsInfo.instance.installedApps![index];
           return StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) {
               return Container(
-                padding: EdgeInsets.all(app.added! ? 4 : 5),
+                padding: const EdgeInsets.all(true ? 4 : 5),
                 margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: app.added! ? Colors.green : Colors.brown,
-                    width: app.added! ? 3 : 2,
+                    color: true ? Colors.green : Colors.brown,
+                    width: true ? 3 : 2,
                   ),
                   borderRadius: const BorderRadius.all(Radius.circular(10)),
                 ),
@@ -52,14 +50,14 @@ class _HomePageViewState extends State<HomePageView> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     Image.memory(
-                      app.icon!,
+                      app! is ApplicationWithIcon ? app.icon : null,
                       width: 50,
                       height: 50,
                     ),
                     Expanded(
                       child: Container(
                         margin: const EdgeInsets.fromLTRB(10, 0, 0, 0),
-                        child: Text(app.name!),
+                        child: Text(app.appName),
                       ),
                     ),
                     IconButton(
@@ -73,11 +71,11 @@ class _HomePageViewState extends State<HomePageView> {
                     IconButton(
                       onPressed: () {
                         setState(() {
-                          app.added = !app.added!;
+                          // app.added = !app.added!;
                         });
-                        print(app.added);
+                        // print(app.added);
                       },
-                      icon: app.added!
+                      icon: true
                           ? const Icon(Icons.close)
                           : const Icon(Icons.add),
                     ),
@@ -88,12 +86,7 @@ class _HomePageViewState extends State<HomePageView> {
           );
 
         },
-      ) : const Text("Nothing here"),
+      )
     );
   }
-}
-
-
-void _openApp(String packageName) {
-
 }
