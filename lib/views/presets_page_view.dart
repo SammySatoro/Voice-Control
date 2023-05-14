@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:voice_control/controls/background_services_manager.dart';
 import 'package:voice_control/controls/microphone_manager.dart';
 import 'package:voice_control/controls/native/channel_manager.dart';
 import 'package:voice_control/controls/speech_recognition_manager.dart';
-import 'package:voice_control/database/voice_command_model.dart';
 import 'package:voice_control/database/voice_commands_database.dart';
+
+import '../controls/applications_manager.dart';
 
 class PresetsPageView extends StatefulWidget {
 
@@ -20,27 +20,7 @@ class PresetsPageViewState extends State<PresetsPageView> {
   String text = 'Press the button and start speaking';
   bool isListening = false;
   bool isLoading = false;
-  late List<VoiceCommand> voiceCommands;
 
-
-  Future<void> onButtonPressed() async {
-    final List<dynamic>? widgets = await ChannelManager.instance.getWidgetsFromApp("com.coloros.calculator");
-    for (var i = 0; i < widgets!.length; i++) {
-      debugPrint("#$i  ${widgets[i]}");
-    }
-    // setState(() {
-    //   text = message;
-    // });
-  }
-
-  Future<void> onGetInfo() async {
-    final widgetPosition = SpeechRecognitionManager().currentWidgetPosition;
-    final info = "Package Name: ${widgetPosition['packageName']} X: ${widgetPosition['x']} Y: ${widgetPosition['y']}";
-    setState(() {
-      text = info;
-    });
-    SpeechRecognitionManager().currentWidgetPosition = widgetPosition;
-  }
 
   Future<void> onOpeningAccessibilitySettings() async {
     await ChannelManager.instance.openAccessibilitySettings();
@@ -53,10 +33,6 @@ class PresetsPageViewState extends State<PresetsPageView> {
       switch (call.method) {
         case 'onViewClicked':
           SpeechRecognitionManager().currentWidgetPosition = await ChannelManager.instance.getClickedViewInfo(call.arguments);
-          SpeechRecognitionManager().testCoords.add([
-            SpeechRecognitionManager().currentWidgetPosition["x"],
-            SpeechRecognitionManager().currentWidgetPosition["y"]
-          ]);
           break;
         default:
           print('Unknown method ${call.method}');
@@ -71,13 +47,13 @@ class PresetsPageViewState extends State<PresetsPageView> {
     super.dispose();
   }
 
-  Future refreshVoiceCommands() async {
-    setState(() => isLoading = true);
-
-    voiceCommands = await VoiceCommandsDataBase.instance.readAllVoiceCommands();
-
-    setState(() => isLoading = false);
-  }
+  // Future refreshVoiceCommands() async {
+  //   setState(() => isLoading = true);
+  //
+  //   applicationPackageNames = await VoiceCommandsDataBase.instance.getUniqueApplicationPackageNames();
+  //
+  //   setState(() => isLoading = false);
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -93,30 +69,6 @@ class PresetsPageViewState extends State<PresetsPageView> {
           ),
         ],
       ),
-      body: Center(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-          child: Column(
-            children: [
-              Text(
-                text,
-                style: const TextStyle(
-                  fontSize: 32.0,
-                  color: Colors.black,
-                  fontWeight: FontWeight.w400
-                ),
-              ),
-              ElevatedButton(
-                  onPressed: () async {
-                    for (VoiceCommand i in (await VoiceCommandsDataBase.instance.readAllVoiceCommands()))
-                      print("THIS ONE: ${i.command}");
-                  },
-                  child: const Icon(Icons.message)
-              ),
-            ],
-          ),
-        )
-      )
     );
   }
 

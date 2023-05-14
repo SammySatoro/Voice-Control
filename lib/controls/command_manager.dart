@@ -147,18 +147,6 @@ class CommandUtils {
     ChannelManager.instance.clickAt(position.dx.toInt(), position.dy.toInt());
   }
 
-
-  static void getData(String rawText) {
-    final text = rawText.toLowerCase();
-
-    if (SpeechRecognitionManager().selectedLocaleId == 'en-US') {
-      if (text == "get data") {
-        PresetsPageViewState().onButtonPressed();
-        SpeechRecognitionManager().currentWords = "";
-      }
-    }
-  }
-
   static void recordNewCommand(String rawText) {
     final text = rawText.toLowerCase();
     try {
