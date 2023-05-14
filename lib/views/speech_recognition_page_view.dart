@@ -1,12 +1,8 @@
-import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart';
-import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
-import 'package:voice_control/controls/applications_manager.dart';
-import 'package:voice_control/main.dart';
 import '../controls/command_manager.dart';
-import 'home_page_view.dart';
+import '../controls/speech_recognition_manager.dart';
+
 
 class SpeechRecognitionPageView extends StatefulWidget {
   const SpeechRecognitionPageView({super.key});
@@ -16,11 +12,8 @@ class SpeechRecognitionPageView extends StatefulWidget {
 }
 
 class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> with AutomaticKeepAliveClientMixin {
-  final SpeechToText _speechToText = SpeechToText();
-  bool _speechEnabled = false;
-  bool _speechAvailable = false;
-  String _currentWords = '';
-  String _selectedLocaleId = 'en-US';
+  final SpeechRecognitionManager _speechRecognitionManager = SpeechRecognitionManager();
+
 
   @override
   bool get wantKeepAlive => true;
@@ -28,7 +21,10 @@ class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> wi
   @override
   void initState() {
     super.initState();
-    _initSpeech();
+    _speechRecognitionManager.initSpeech(
+      onError: SpeechRecognitionManager().errorListener,
+      onStatus: statusListener,
+    );
   }
 
   @override
@@ -40,13 +36,13 @@ class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> wi
         actions: [
           Center(
             child: Text(
-              _selectedLocaleId == 'en-US' ?  'eng' : 'рус',
+              _speechRecognitionManager.selectedLocaleId == 'en-US' ?  'eng' : 'рус',
             ),
           ),
           IconButton(
               onPressed: () {
                 setState(() {
-                  _selectedLocaleId = _selectedLocaleId == 'en-US' ?  'ru-RU' : 'en-US';
+                  _speechRecognitionManager.selectedLocaleId = _speechRecognitionManager.selectedLocaleId == 'en-US' ?  'ru-RU' : 'en-US';
                 });
               },
               icon: const Icon(Icons.language)
@@ -78,9 +74,9 @@ class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> wi
                 ),
                 child: SingleChildScrollView(
                   child: Text(
-                    _currentWords.isNotEmpty
-                        ? _currentWords
-                        : _speechAvailable
+                    _speechRecognitionManager.currentWords.isNotEmpty
+                        ? _speechRecognitionManager.currentWords
+                        : _speechRecognitionManager.speechAvailable
                         ? 'Tap the microphone to start listening...'
                         : 'Speech not available',
                     style: const TextStyle(
@@ -101,119 +97,46 @@ class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> wi
       ),
       floatingActionButton: FloatingActionButton(
         onPressed:
-        _speechToText.isNotListening ? _startListening : _stopListening,
+        _speechRecognitionManager.speechToText.isNotListening ? _startListening : _stopListening,
         tooltip: 'Listen',
-        child: Icon(_speechToText.isNotListening ? Icons.mic_off : Icons.mic),
+        child: Icon(_speechRecognitionManager.speechToText.isNotListening ? Icons.mic_off : Icons.mic),
       ),
     );
   }
 
-  printLocales() async {
-    var locales = await _speechToText.locales();
-    for (var local in locales) {
-      debugPrint(local.name);
-      debugPrint(local.localeId);
-    }
-  }
-
-  void errorListener(SpeechRecognitionError error) {
-    debugPrint(error.errorMsg.toString());
-    _startListening();
-  }
-
   void statusListener(String status) async {
     debugPrint("status $status");
-    if (status == "done" && _speechEnabled) {
+    if (status == "done" && _speechRecognitionManager.speechEnabled) {
       setState(() {
-        changeLanguageVoiceCommand(_currentWords);
-        openAppVoiceCommand(_currentWords);
-        print(_currentWords);
-        _speechEnabled = false;
+        if (_speechRecognitionManager.currentWords.isNotEmpty) {
+          CommandUtils.recordNewCommand(_speechRecognitionManager.currentWords);
+          CommandUtils.changeLanguage(_speechRecognitionManager.currentWords);
+          CommandUtils.openApp(_speechRecognitionManager.currentWords);
+          CommandUtils.clickByCommand(_speechRecognitionManager.currentWords);
+          // CommandUtils.getData(_speechRecognitionManager.currentWords);
+        }
+        print(_speechRecognitionManager.currentWords);
+        _speechRecognitionManager.speechEnabled = false;
       });
       await _startListening();
     }
   }
 
-  /// This has to happen only once per app
-  void _initSpeech() async {
-    _speechAvailable = await _speechToText.initialize(
-        onError: errorListener,
-        onStatus: statusListener
-    );
-    setState(() {});
-  }
-
-  /// Each time to start a speech recognition session
   Future _startListening() async {
-    debugPrint("=================================================");
-    await _stopListening();
-    await Future.delayed(const Duration(milliseconds: 50));
-    await _speechToText.listen(
-        onResult: _onSpeechResult,
-        localeId: _selectedLocaleId,
-        cancelOnError: false,
-        partialResults: true,
-        listenMode: ListenMode.dictation
+    await _speechRecognitionManager.startListening(
+      onResult: _onSpeechResult,
     );
-    setState(() {
-      _speechEnabled = true;
-    });
+    setState(() => _speechRecognitionManager.speechEnabled = true);
   }
 
-  /// Manually stop the active speech recognition session
-  /// Note that there are also timeouts that each platform enforces
-  /// and the SpeechToText plugin supports setting timeouts on the
-  /// listen method.
   Future _stopListening() async {
-    setState(() {
-      _speechEnabled = false;
-    });
-    await _speechToText.stop();
+    setState(() => _speechRecognitionManager.speechEnabled = false);
+    await _speechRecognitionManager.stopListening();
   }
 
-  /// This is the callback that the SpeechToText plugin calls when
-  /// the platform returns recognized words.
   void _onSpeechResult(SpeechRecognitionResult result) {
     setState(() {
-      _currentWords = result.recognizedWords;
+      _speechRecognitionManager.currentWords = result.recognizedWords;
     });
-  }
-
-  void changeLanguageVoiceCommand(String rawText) {
-    final text = rawText.toLowerCase();
-
-    if (_selectedLocaleId == 'en-US') {
-      if (text.contains(Command.changeLang['eng']!) && text.indexOf(Command.changeLang['eng']!) == 0) {
-        _selectedLocaleId = _selectedLocaleId == 'en-US' ?  'ru-RU' : 'en-US';
-      }
-    } else {
-      if (text.contains(Command.changeLang['ru']!) && text.indexOf(Command.changeLang['ru']!) == 0) {
-        _selectedLocaleId = _selectedLocaleId == 'en-US' ?  'ru-RU' : 'en-US';
-      }
-    }
-  }
-  
-  void openAppVoiceCommand(String rawText) {
-    final text = rawText.toLowerCase();
-    final List splitText = text.split(' ');
-    final appName = splitText.sublist(1).join(" ").toLowerCase();
-    final int appIndex = appsInfo.value!.appNames.indexOf(appName);
-    print("$appName $appIndex $splitText ${splitText[0].indexOf(Command.openApp['eng']!)}");
-    if (_selectedLocaleId == 'en-US') {
-      if (splitText[0].indexOf(Command.openApp['eng']!) == 0 && appIndex != -1) {
-        print("I'M HERE");
-        LaunchApp.openApp(
-          androidPackageName: ApplicationsInfo.instance.packageNames[appIndex],
-        );
-        _currentWords = "";
-      }
-    } else {
-      if (splitText[0].indexOf(Command.openApp['ru']!) == 0 && appIndex != -1) {
-        LaunchApp.openApp(
-          androidPackageName: ApplicationsInfo.instance.packageNames[appIndex],
-        );
-        _currentWords = "";
-      }
-    }
   }
 }

@@ -37,10 +37,8 @@ class ApplicationsInfo {
   List<String> appNames = [];
   List<String> packageNames = [];
 
-  // Getter for installedApps
   List? get installedApps => _installedApps;
 
-  // Check if _installedApps is null or not using a getter
   bool get isInstalledAppsInitialized => _installedApps != null;
 
   Future<void> fetchInstalledApps() async {
@@ -54,7 +52,5 @@ class ApplicationsInfo {
       appNames.add(element.appName.toLowerCase());
       packageNames.add(element.packageName);
     }
-    print("============================================${_installedApps!.length}");
-    print(appNames.sublist(100));
   }
 }
