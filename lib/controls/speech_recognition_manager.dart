@@ -10,12 +10,12 @@ class SpeechRecognitionManager {
   bool speechAvailable = false;
   String currentWords = '';
   String selectedLocaleId = 'en-US';
-  Map<dynamic, dynamic> currentWidgetPosition = {
+  late Function(SpeechRecognitionResult) onResult;
+  Map<dynamic, dynamic> currentWidgetInfo = {
     "packageName": "",
     "x": 0,
     "y": 0,
   };
-  List<List<int>> testCoords = [];
 
 
   SpeechToText get speechToText => _speechToText;
@@ -40,9 +40,7 @@ class SpeechRecognitionManager {
     );
   }
 
-  Future<void> startListening({
-    required void Function(SpeechRecognitionResult) onResult,
-  }) async {
+  Future<void> startListening() async {
     await stopListening();
     await Future.delayed(const Duration(milliseconds: 50));
     await _speechToText.listen(
@@ -60,9 +58,9 @@ class SpeechRecognitionManager {
     await _speechToText.stop();
   }
 
-  void errorListener(SpeechRecognitionError error) {
+  void errorListener(SpeechRecognitionError error) async {
     debugPrint(error.errorMsg.toString());
-    startListening;
+    await startListening();
   }
 
   Future<void> printLocales() async {

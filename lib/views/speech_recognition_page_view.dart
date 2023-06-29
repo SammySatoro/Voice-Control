@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import '../controls/command_manager.dart';
+import '../controls/notifications/notification_manager.dart';
 import '../controls/speech_recognition_manager.dart';
 
 
@@ -25,6 +26,7 @@ class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> wi
       onError: SpeechRecognitionManager().errorListener,
       onStatus: statusListener,
     );
+    _speechRecognitionManager.onResult = _onSpeechResult;
   }
 
   @override
@@ -109,13 +111,13 @@ class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> wi
     if (status == "done" && _speechRecognitionManager.speechEnabled) {
       setState(() {
         if (_speechRecognitionManager.currentWords.isNotEmpty) {
-          CommandUtils.recordNewCommand(_speechRecognitionManager.currentWords);
-          CommandUtils.changeLanguage(_speechRecognitionManager.currentWords);
-          CommandUtils.openApp(_speechRecognitionManager.currentWords);
-          CommandUtils.clickByCommand(_speechRecognitionManager.currentWords);
-          // CommandUtils.getData(_speechRecognitionManager.currentWords);
+          CommandUtils().recordNewCommand(_speechRecognitionManager.currentWords);
+          CommandUtils().changeLanguage(_speechRecognitionManager.currentWords);
+          CommandUtils().openApp(_speechRecognitionManager.currentWords);
+          CommandUtils().clickByCommand(_speechRecognitionManager.currentWords);
         }
         print(_speechRecognitionManager.currentWords);
+        _speechRecognitionManager.currentWords = '';
         _speechRecognitionManager.speechEnabled = false;
       });
       await _startListening();
@@ -123,15 +125,14 @@ class SpeechRecognitionPageViewState extends State<SpeechRecognitionPageView> wi
   }
 
   Future _startListening() async {
-    await _speechRecognitionManager.startListening(
-      onResult: _onSpeechResult,
-    );
+    await _speechRecognitionManager.startListening();
     setState(() => _speechRecognitionManager.speechEnabled = true);
   }
 
   Future _stopListening() async {
     setState(() => _speechRecognitionManager.speechEnabled = false);
     await _speechRecognitionManager.stopListening();
+    NotificationManager().showNotification("Status:", "Listening has stopped");
   }
 
   void _onSpeechResult(SpeechRecognitionResult result) {

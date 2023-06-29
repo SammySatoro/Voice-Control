@@ -1,116 +1,89 @@
 import 'dart:async';
+import 'dart:ffi';
 
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:voice_control/controls/speech_recognition_manager.dart';
 import 'package:voice_control/database/voice_command_model.dart';
 import 'package:voice_control/database/voice_commands_database.dart';
-import 'package:voice_control/views/presets_page_view.dart';
 import '../main.dart';
 import 'applications_manager.dart';
 import 'native/channel_manager.dart';
+import 'notifications/notification_manager.dart';
 
 class Command {
-  static final allEng = [changeLang['eng'], openApp['eng'], click['eng'], voiceControl['eng']];
-  static final allRu = [changeLang['ru'], openApp['ru'], click['ru'], voiceControl['ru']];
+  static final allEng = [changeLang['en-US'], openApp['en-US'], click['en-US'], voiceControl['en-US']];
+  static final allRu = [changeLang['ru-RU'], openApp['ru-RU'], click['ru-RU'], voiceControl['ru-RU']];
 
-  static const changeLang = {'eng': 'change language', 'ru': 'смени язык'};
-  static const openApp = {'eng': 'open', 'ru': 'открой'};
-  static const click = {'eng': 'click', 'ru': 'нажать'};
-  static const voiceControl = {'eng': 'voice control', 'ru': 'запись новой команды'};
-
+  static const changeLang = {'en-US': 'change language', 'ru-RU': 'смени язык'};
+  static const openApp = {'en-US': 'open', 'ru-RU': 'открой'};
+  static const click = {'en-US': 'click', 'ru-RU': 'нажать'};
+  static const voiceControl = {'en-US': 'voice control', 'ru-RU': 'запись новой команды'};
 }
 
 class CommandUtils {
 
-  static void changeLanguage(String rawText) {
-    final text = rawText.toLowerCase();
+  static final CommandUtils _instance = CommandUtils._internal();
 
-    if (SpeechRecognitionManager().selectedLocaleId == 'en-US') {
-      if (text.contains(Command.changeLang['eng']!) && text.indexOf(Command.changeLang['eng']!) == 0) {
-        SpeechRecognitionManager().selectedLocaleId = SpeechRecognitionManager().selectedLocaleId == 'en-US' ?  'ru-RU' : 'en-US';
-      }
-    } else {
-      if (text.contains(Command.changeLang['ru']!) && text.indexOf(Command.changeLang['ru']!) == 0) {
-        SpeechRecognitionManager().selectedLocaleId = SpeechRecognitionManager().selectedLocaleId == 'en-US' ?  'ru-RU' : 'en-US';
-      }
+  factory CommandUtils() {
+    return _instance;
+  }
+  CommandUtils._internal();
+
+  static String currentlyOpenedApplication = "com.example.voice_control";
+  final notificationManager = NotificationManager();
+
+  Future<void> _showNotification(title, content) async {
+    await notificationManager.showNotification(title, content);
+  }
+
+  void changeLanguage(String rawText) {
+    final text = rawText.toLowerCase();
+    final String locale = SpeechRecognitionManager().selectedLocaleId;
+    Map<String, String> language = {"ru-RU": "English", "en-US": "Русский"};
+    if (text.contains(Command.changeLang[locale]!) && text.indexOf(Command.changeLang[locale]!) == 0) {
+      SpeechRecognitionManager().selectedLocaleId = SpeechRecognitionManager().selectedLocaleId == 'en-US' ?  'ru-RU' : 'en-US';
+      _showNotification("Locale", language[locale]);
     }
   }
 
-  static void openApp(String rawText) {
+  void openApp(String rawText) {
     final text = rawText.toLowerCase();
     final List splitText = text.split(' ');
     final appName = splitText.sublist(1).join(" ").toLowerCase();
     final int appIndex = appsInfo.value!.appNames.indexOf(appName);
+    final String locale = SpeechRecognitionManager().selectedLocaleId;
 
-    if (SpeechRecognitionManager().selectedLocaleId == 'en-US') {
-      if (splitText[0].indexOf(Command.openApp['eng']!) == 0 && appIndex != -1) {
-        LaunchApp.openApp(
-          androidPackageName: ApplicationsInfo.instance.packageNames[appIndex],
-        );
-        SpeechRecognitionManager().currentWords = "";
-      }
-    } else {
-      if (splitText[0].indexOf(Command.openApp['ru']!) == 0 && appIndex != -1) {
-        LaunchApp.openApp(
-          androidPackageName: ApplicationsInfo.instance.packageNames[appIndex],
-        );
-        SpeechRecognitionManager().currentWords = "";
-      }
-    }
-  }
-
-  static void clickOnScreen(String rawText) {
-    final text = rawText.toLowerCase();
-    final List splitText = text.split(' ');
-    try {
-      final clickWord = splitText[0];
-      final int index = int.parse(_checkIfDigit(splitText[1]));
-      final Offset offset = Offset(
-          SpeechRecognitionManager().testCoords[index][0].toDouble(),
-          SpeechRecognitionManager().testCoords[index][1].toDouble()
+    if (splitText[0].indexOf(Command.openApp[locale]!) == 0 && appIndex != -1) {
+      LaunchApp.openApp(
+        androidPackageName: ApplicationsInfo.instance.packageNames[appIndex],
       );
-      if (SpeechRecognitionManager().selectedLocaleId == 'en-US') {
-        if (clickWord.indexOf(Command.click['eng']!) == 0) {
-          _simulateTap(offset);
-          SpeechRecognitionManager().currentWords = "";
-        }
-      } else {
-        if (clickWord.indexOf(Command.click['ru']!) == 0) {
-          _simulateTap(offset);
-          SpeechRecognitionManager().currentWords = "";
-        }
-      }
-    } catch(e) {
-      print("Error occurred while clicking on screen: $e");
+      SpeechRecognitionManager().currentWords = "";
     }
   }
 
-  static void clickByCommand(String rawText) async {
-    final text = rawText.toLowerCase();
+  void clickByCommand(String rawText) async {
     try {
-      final String clickWord = text.split(' ')[0];
-      final String command = text.split(Command.click["eng"]!)[1].trim();
-      final coords = await VoiceCommandsDataBase.instance.getCoordinates("com.coloros.calculator", command);
+      currentlyOpenedApplication = (await ChannelManager.instance.getCurrentlyOpenedApplication())!;
+      final String locale = SpeechRecognitionManager().selectedLocaleId;
+      List<String> tokens = rawText.toLowerCase().split(' ');
+      print("currentlyOpenedApplication: $currentlyOpenedApplication");
+      final String clickWord = tokens[0];
+      if (clickWord != Command.click[locale]) return;
+      late String command = tokens.sublist(1).join(" ");
+      final coords = await VoiceCommandsDataBase.instance.getCoordinates(currentlyOpenedApplication, command);
       final Offset offset = Offset(
           coords!["xCoord"]!.toDouble(),
           coords["yCoord"]!.toDouble()
       );
-      if (SpeechRecognitionManager().selectedLocaleId == 'en-US') {
-        if (clickWord.indexOf(Command.click['eng']!) == 0) {
-          _simulateTap(offset);
-          SpeechRecognitionManager().currentWords = "";
-        }
-      } else {
-        if (clickWord.indexOf(Command.click['ru']!) == 0) {
-          _simulateTap(offset);
-          SpeechRecognitionManager().currentWords = "";
-        }
+      if (clickWord.indexOf(Command.click[locale]!) == 0) {
+        _simulateTap(offset);
+        SpeechRecognitionManager().currentWords = "";
       }
-    } catch(e) {}
+    } catch(e) {print(e);}
   }
 
-  static String _checkIfDigit(String word) {
+  String _checkIfDigit(String word) {
     if (SpeechRecognitionManager().selectedLocaleId == "en-US") {
       switch(word) {
         case "zero": word = "0"; break;
@@ -143,37 +116,34 @@ class CommandUtils {
     return word;
   }
 
-  static void _simulateTap(Offset position) async {
+  void _simulateTap(Offset position) async {
     ChannelManager.instance.clickAt(position.dx.toInt(), position.dy.toInt());
   }
 
-  static void recordNewCommand(String rawText) {
+  void recordNewCommand(String rawText) {
     final text = rawText.toLowerCase();
     try {
-      String command = text.split(Command.voiceControl["eng"]!)[1].trim();
+      final String locale = SpeechRecognitionManager().selectedLocaleId;
+      String command = "";
+      command = text.split(Command.voiceControl[locale]!)[1].trim();
       command = _checkIfDigit(command);
       print("COMMAND: $command");
-      if (SpeechRecognitionManager().selectedLocaleId == 'en-US') {
-        if (text.indexOf(Command.voiceControl["eng"]!) == 0) {
-          if (command.isNotEmpty) _recordNewCommand(command);
-          SpeechRecognitionManager().currentWords = "";
-        }
-      } else {
-        if (text.indexOf(Command.voiceControl["ru"]!) == 0) {
-          if (command.isNotEmpty) _recordNewCommand(command);
-          SpeechRecognitionManager().currentWords = "";
-        }
+      if (text.indexOf(Command.voiceControl[locale]!) == 0) {
+        if (command.isNotEmpty) _recordNewCommand(command);
+        _showNotification("A new command has been recorded:", "$command");
+        SpeechRecognitionManager().currentWords = "";
+        VoiceCommandsDataBase.redrawHomePageView();
       }
     } catch(e) {}
   }
 
-  static Future<void> _recordNewCommand(String command) async {
+  Future<void> _recordNewCommand(String command) async {
     await VoiceCommandsDataBase.instance.create(
         VoiceCommand(
             command: command,
-            xCoord: SpeechRecognitionManager().currentWidgetPosition["x"],
-            yCoord: SpeechRecognitionManager().currentWidgetPosition["y"],
-            applicationPackageName: SpeechRecognitionManager().currentWidgetPosition["packageName"],
+            xCoord: SpeechRecognitionManager().currentWidgetInfo["x"],
+            yCoord: SpeechRecognitionManager().currentWidgetInfo["y"],
+            applicationPackageName: SpeechRecognitionManager().currentWidgetInfo["packageName"],
             language: SpeechRecognitionManager().selectedLocaleId
         )
     );

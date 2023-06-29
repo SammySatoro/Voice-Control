@@ -18,15 +18,24 @@ class ChannelManager {
     }
   }
 
-  Future<Map<dynamic, dynamic>> getClickedViewInfo(Map<dynamic, dynamic> arguments) async {
+  Future<String?> getCurrentlyOpenedApplication() async {
     try {
-      print("getClickedViewInfo: $arguments");
-      return arguments;
+      return await platform.invokeMethod('getOpenedApplication');
     } on PlatformException catch (e) {
-      print("Error getting clicked view info: ${e.message}");
-      return {};
+      print("Error: ${e.message}");
+      return null;
     }
   }
+
+  // Future<Map<dynamic, dynamic>> getClickedViewInfo(Map<dynamic, dynamic> arguments) async {
+  //   try {
+  //     print("getClickedViewInfo: $arguments");
+  //     return arguments;
+  //   } on PlatformException catch (e) {
+  //     print("Error getting clicked view info: ${e.message}");
+  //     return {};
+  //   }
+  // }
   
   Future<void> openAccessibilitySettings() async {
     try {

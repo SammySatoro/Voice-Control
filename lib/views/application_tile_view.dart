@@ -1,11 +1,16 @@
 import 'package:device_apps/device_apps.dart';
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/material.dart';
+import 'package:voice_control/database/voice_command_model.dart';
 import 'package:voice_control/views/voice_command_view.dart';
+
+import '../database/voice_commands_database.dart';
 
 class ApplicationTileView extends StatefulWidget {
   final ApplicationWithIcon app;
-  const ApplicationTileView({super.key, required this.app});
+  final VoidCallback onDelete;
+  List<Map<String, dynamic>> voiceCommands;
+  ApplicationTileView({super.key, required this.app, required this.voiceCommands, required this.onDelete});
 
   @override
   State<ApplicationTileView> createState() => _ApplicationTileViewState();
@@ -14,13 +19,29 @@ class ApplicationTileView extends StatefulWidget {
 class _ApplicationTileViewState extends State<ApplicationTileView> {
   bool _isListDropped = false;
 
+  void deleteVoiceCommand(String voiceCommandId) async {
+    await VoiceCommandsDataBase.instance.delete(int.parse(voiceCommandId));
+    final updatedVoiceCommands = await VoiceCommandsDataBase.instance.getRecordsPackageName(widget.app.packageName);
+    setState(() {
+      widget.voiceCommands = updatedVoiceCommands;
+    });
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.voiceCommands.isEmpty) {
+      return Container(); // Return an empty container to effectively remove the widget from view
+    }
+
     return GestureDetector(
       onTap: () {
-        _isListDropped = !_isListDropped;
         setState(() {
-
+          _isListDropped = !_isListDropped;
         });
       },
       child: Column(
@@ -58,29 +79,30 @@ class _ApplicationTileViewState extends State<ApplicationTileView> {
                   icon: const Icon(Icons.open_in_new_outlined),
                 ),
                 IconButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      setState(() {
+                        widget.onDelete();
+                      });
+                    },
                     icon: const Icon(Icons.delete_outline)
                 ),
               ],
             ),
           ),
-          if (_isListDropped)
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3, // Replace with actual number of nested list items
-              itemBuilder: (BuildContext context, int index) {
-                return const ListTile(
-                  title:  VoiceCommandView(
-                    command: "Hello there!",
-                    xCoord: "1000",
-                    yCoord: "2000",
+          if (_isListDropped && widget.voiceCommands.isNotEmpty)
+            ...widget.voiceCommands.map((voiceCommand) =>
+                ListTile(
+                  title: VoiceCommandView(
+                    voiceCommand: VoiceCommand.fromJson(voiceCommand),
+                    onDelete: () {
+                      setState(() {
+                        deleteVoiceCommand(voiceCommand["_id"].toString());
+                      });
+                    },
                   ),
-                );
-              },
+                )
             ),
         ],
-
       ),
     );
   }

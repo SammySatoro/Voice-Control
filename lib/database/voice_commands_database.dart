@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:voice_control/database/voice_command_model.dart';
@@ -7,6 +10,8 @@ class VoiceCommandsDataBase {
   static final VoiceCommandsDataBase instance = VoiceCommandsDataBase._init();
 
   static Database? _database;
+
+  static VoidCallback redrawHomePageView = () {};
 
   VoiceCommandsDataBase._init();
 
@@ -101,6 +106,16 @@ class VoiceCommandsDataBase {
     );
   }
 
+  Future<int> deleteApplicationCommands(String packageName) async {
+    final db = await instance.database;
+
+    return await db.delete(
+      tableVoiceCommands,
+      where: "${VoiceCommandFields.applicationPackageName} = ?",
+      whereArgs: [packageName],
+    );
+  }
+
   Future<List<String>> getUniqueApplicationPackageNames() async {
     final db = await instance.database;
     final result = await db.rawQuery('SELECT DISTINCT ${VoiceCommandFields.applicationPackageName} FROM $tableVoiceCommands');
@@ -123,6 +138,18 @@ class VoiceCommandsDataBase {
     }
     return null;
   }
+
+  Future<List<Map<String, dynamic>>> getRecordsPackageName(String packageName) async {
+    final db = await instance.database;
+    List<Map<String, dynamic>> results = await db.query(
+      'voice_commands',
+      where: 'applicationPackageName = ?',
+      whereArgs: [packageName],
+    );
+
+    return results;
+  }
+
 
 
   Future close() async {
