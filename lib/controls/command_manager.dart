@@ -71,6 +71,9 @@ class CommandUtils {
       final String clickWord = tokens[0];
       if (clickWord != Command.click[locale]) return;
       late String command = tokens.sublist(1).join(" ");
+      if (tokens.length == 2) {
+        command = _checkIfDigit(tokens[1]);
+      }
       final coords = await VoiceCommandsDataBase.instance.getCoordinates(currentlyOpenedApplication, command);
       final Offset offset = Offset(
           coords!["xCoord"]!.toDouble(),
